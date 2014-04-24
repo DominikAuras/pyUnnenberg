@@ -11,7 +11,7 @@ setup(
     url='https://github.com/DominikAuras/pyUnnenberg',
     packages=find_packages(),
     keywords='HAM SSTV Beacon',
-    install_requires = ['pySSTV>=0.2.5','ditndah==1.0',],
+    install_requires = ['pySSTV>=0.2.5','ditndah>=1.0','pyalsaaudio>=0.5'],
     license='GPL',
     classifiers=[
         'Development Status :: 1 - Planning',
