@@ -17,7 +17,7 @@ setup(
         'Development Status :: 1 - Planning',
         'Topic :: Communications :: Ham Radio',
         'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
-        'Operating System :: OS Independent',
+        'Operating System :: POSIX :: Linux',
         ],
     long_description=open('README.md').read(),
     entry_points = {},
