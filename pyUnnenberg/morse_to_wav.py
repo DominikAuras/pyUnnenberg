@@ -3,7 +3,8 @@
 def main():
   import argparse
 
-  parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+  parser = argparse.ArgumentParser(description="Konvertiere Text zu Morsecode.",
+                                   formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   parser.add_argument("--wpm",type=int,default=12,help="Morse code rate in words per minute")
   parser.add_argument("--fpwm",type=int,default=12,help="Farnsworth rate in words per minute")
   parser.add_argument("-o","--output",type=str,default="morse.wav",help="Output file")
