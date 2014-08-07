@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- encoding: utf-8 -*-
 
 from setuptools import setup, find_packages
@@ -11,7 +12,7 @@ setup(
     url='https://github.com/DominikAuras/pyUnnenberg',
     packages=find_packages(),
     keywords='HAM SSTV Beacon',
-    install_requires = ['pySSTV>=0.2.5','ditndah>=1.0','pyalsaaudio>=0.5', 'pillowfight'],
+    install_requires = ['pySSTV>=0.2.5','pyalsaaudio>=0.5','pillowfight'],
     license='GPL',
     classifiers=[
         'Development Status :: 1 - Planning',
