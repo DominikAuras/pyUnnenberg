@@ -54,6 +54,9 @@ class LazyLoggerAdapter(object):
                 return
         if self.logger.isEnabledFor(level):
             self._log(level, msg, args, kwargs)
+            
+    def isEnabledFor(self, lvl):
+        return self.logger.isEnabledFor(lvl)
 
 
 if __name__ == '__main__':
