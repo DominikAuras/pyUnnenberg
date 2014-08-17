@@ -39,6 +39,7 @@ class vws(object):
         ml.debug(line)
     
   def download_image(self,filename = "tmp.jpg"):
+    if not self.initialized: raise RuntimeError
     http_path = self.vws + self.img_relpath
     ml.debug("Lade {0} nach {1} herunter".format(http_path,filename))
     (fname,headers) = self._urlretrieve(http_path, filename)
