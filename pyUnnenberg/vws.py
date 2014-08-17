@@ -38,21 +38,21 @@ class vws(object):
       for line in traceback.format_exc().splitlines():
         ml.debug(line)
     
-  def download_image(self,filename = "tmp.jpg"):
+  def download_image(self):
     if not self.initialized: raise RuntimeError
     http_path = self.vws + self.img_relpath
-    ml.debug("Lade {0} nach {1} herunter".format(http_path,filename))
-    (fname,headers) = self._urlretrieve(http_path, filename)
-    ml.debug("Ladevorgang erfolgreich: {0}".format(fname))
-    return fname
+    ml.debug("Lade {0}".format(http_path))
+    imgfile = self._urlretrieve(http_path)
+    ml.debug("Ladevorgang erfolgreich: {0}".format(len(imgfile)))
+    return imgfile
 
   def set_channel(self,channel):
     ml.info("Wechsle VWS Kanal zu {0}".format(channel))
     self._urlretrieve(self.vws + self.vws_chn + str(channel))
     
-  def _urlretrieve(self,url):
+  def _urlretrieve(self,url,*args):
     ml.debug("URL Retrieve: \"{}\"".format(url))
-    return urllib.urlretrieve(url)
+    return urllib.urlopen(url,*args).read()
 
 
 if __name__=='__main__':
@@ -76,4 +76,5 @@ if __name__=='__main__':
     raise SystemExit
   for channel in xrange(0,4):
     e.set_channel(channel)
-    e.download_image("chan{0}.jpg".format(channel))
+    with open("chan{0}.jpg".format(channel),'wb') as f:
+      f.write(e.download_image())
