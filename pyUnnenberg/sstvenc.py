@@ -68,4 +68,4 @@ if __name__ == '__main__':
   rootlogger.addHandler(ch)
   
   enc = SSTVEnc()
-  enc.encode(args.wav,args.mode,args.img,args.overlay_text)
+  enc.encode(args.wav,module_map[args.mode],args.img,args.overlay_text)
