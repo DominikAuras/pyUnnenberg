@@ -36,20 +36,26 @@ class BackgroundAudio:
       ml.warn(lambda:"Warning: buffer length is not a multiple of {}, padding with zeros".format(self.chunk))
     self.buffer = map(lambda x: array('f',x).tostring(), _chunks(self.chunk,buffer,0.))
     self.framerate = framerate
+    self._start()
     
   def _setup(self):
     self.pcm.setchannels(1)
     self.pcm.setrate(self.framerate)
     self.pcm.setformat(self.FORMAT)
     self.pcm.setperiodsize(self.chunk)
-
-  def play(self):
+    ml.debug(lambda:"Setup PCM Device for BackgroundAudio, frame rate {}".format(self.framerate))
+      
+  def _start(self):
     # Note: multiprocessing spawns a new process, which is a copy of the current
     # process. The only link is via the managed objects (here: the lock).
     self.manager = multiprocessing.Manager()
     self.lock = self.manager.Lock()
+    self.lock.acquire()
     self.ba = multiprocessing.Process(target=self._play, args=(self.lock,))     
     self.ba.start()
+
+  def play(self):
+    self.lock.release()
 
   def pause(self):
     self.lock.acquire(True)
