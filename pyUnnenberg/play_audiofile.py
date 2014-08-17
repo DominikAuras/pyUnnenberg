@@ -13,6 +13,10 @@ from logging_helper import *
 ml = logging.getLogger('PAF')
 ml.addHandler(logging.NullHandler())
 ml = LazyLoggerAdapter(ml)
+
+def _pad(n, iterable, padvalue=None):
+  return list(izip_longest(*[iter(iterable)]*n, fillvalue=padvalue))
+  
 # Copied and adopted from pySSTV.examples.
 class PlayAudioFile:
   chunk = 1024
@@ -36,16 +40,40 @@ class PlayAudioFile:
     else:
       raise ValueError('Unsupported format')
     
+    self.chunk = int(0.1 * self.wf.getframerate())
     self.p.setperiodsize(self.chunk)
+    self._cached = None
+    
     ml.debug(lambda:"Loaded wav-file, frame rate {}, chunk size {}".format(self.wf.getframerate(),self.chunk))
 
-  def play(self):
-    """ Play entire file """
+  def cache(self):
+    self._cached = []
+    
     data = self.wf.readframes(self.chunk)
     while data:
-      while self.p.write(data) == 0:
-        time.sleep(0)
+      self._cached += ["{0:\0<{1}}".format(data,self.chunk)]
       data = self.wf.readframes(self.chunk)
+    
+  def play(self):
+    """ Play entire file """
+    start_time = time.time()
+    framecnt = 0
+    if self._cached is not None:
+      for chunk in self._cached:
+        while self.p.write(chunk) == 0: time.sleep(0)
+      framecnt = len(self._cached)
+    else:
+      data = self.wf.readframes(self.chunk)
+      while data:
+        framecnt += 1
+        while self.p.write("{0:\0<{1}}".format(data,self.chunk)) == 0:
+          time.sleep(0)
+        data = self.wf.readframes(self.chunk)
+      self.wf.rewind()
+    #
+    delta = start_time + 0.1 * framecnt - time.time()
+    if delta > 0.1:
+      time.sleep(delta)
 
   def close(self):
     """ Graceful shutdown """ 
