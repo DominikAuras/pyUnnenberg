@@ -10,6 +10,14 @@ from itertools import izip_longest
 
 import multiprocessing
 
+import logging
+from logging_helper import *
+
+# module-level logger
+ml = logging.getLogger('BA')
+ml.addHandler(logging.NullHandler())
+ml = LazyLoggerAdapter(ml)
+
 def _chunks(n, iterable, padvalue=None):
     return izip_longest(*[iter(iterable)]*n, fillvalue=padvalue)
  
@@ -25,7 +33,7 @@ class BackgroundAudio:
   def __init__(self, buffer, framerate, chunk = CHUNK):
     self.chunk = chunk
     if (len(buffer) % self.chunk):
-      print("Warning: buffer length is not a multiple of {0}, padding with zeros".format(self.chunk))
+      ml.warn(lambda:"Warning: buffer length is not a multiple of {}, padding with zeros".format(self.chunk))
     self.buffer = map(lambda x: array('f',x).tostring(), _chunks(self.chunk,buffer,0.))
     self.framerate = framerate
     
@@ -53,7 +61,8 @@ class BackgroundAudio:
     self.ba.terminate()
     
 
-  def _play(self,lock):
+  def _play(self,lock):    
+    ml.info(lambda:"Process {}: BackgroundAudio._play() gestartet".format(multiprocessing.current_process().pid))
     self.pcm = alsaaudio.PCM(card=self.CARD)
     self._setup()
     while True:
