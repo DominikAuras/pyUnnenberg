@@ -4,6 +4,15 @@
 from contextlib import closing
 import alsaaudio, wave, time
 
+from itertools import izip_longest
+
+import logging
+from logging_helper import *
+
+# module-level logger
+ml = logging.getLogger('PAF')
+ml.addHandler(logging.NullHandler())
+ml = LazyLoggerAdapter(ml)
 # Copied and adopted from pySSTV.examples.
 class PlayAudioFile:
   chunk = 1024
@@ -28,6 +37,7 @@ class PlayAudioFile:
       raise ValueError('Unsupported format')
     
     self.p.setperiodsize(self.chunk)
+    ml.debug(lambda:"Loaded wav-file, frame rate {}, chunk size {}".format(self.wf.getframerate(),self.chunk))
 
   def play(self):
     """ Play entire file """
