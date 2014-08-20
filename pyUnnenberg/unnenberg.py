@@ -71,6 +71,31 @@ def freq_shift(sstvmode,offset):
   SSTVModeShifted.__name__ = "SSTVModeShifted_" + sstvmode.__name__
   return SSTVModeShifted
 
+class sstv_process_mgr(object):
+  def __init__(self):
+    self.mgr = multiprocessing.Manager()
+
+  def start(self):
+    self.sstv_q = self.mgr.JoinableQueue()
+    self.sstv_p = multiprocessing.Process(target=sstv_process, args=(self.sstv_q,))
+    self.sstv_p.start()
+
+  def get_nowait(self):
+    return self.sstv_q.get_nowait()
+
+  def check(self):
+    if not self.sstv_p.is_alive():
+      self.restart()
+
+  def restart(self):
+    ml.warn("SSTV Prozess wird neugestartet werden")
+    try:
+      self.sstv_p.terminate()
+    except: pass
+    time.sleep(2)
+    self.start()
+
+  
 
 def main(hbq):
   r""" Main Process, sends heartbeats to supervisor process via the heartbeat queue 'hbq'. """
@@ -78,14 +103,9 @@ def main(hbq):
   
   sample_rate = 12000
   
-  static_images = glob("images/*.jpg") + glob("images/*.bmp") + glob("images/*.png")
-  ml.info(lambda:"Static images: {}".format(", ".join(static_images)))
-  static_images = cycle(static_images)
-  
   carrier = get_carrier_process(sample_rate)
   carrier.play()
   
-  sstv_mode = cycle(map(lambda x: freq_shift(x,-400),[MartinM1, PasokonP3]))
   pi4 = PlayAudioFile("pi4.wav")
   pi4.cache()
     
@@ -93,34 +113,83 @@ def main(hbq):
     hbq.put("alive")
   
   send_heartbeat()
+  
+  sstvp = sstv_process_mgr()
+  sstvp.start()
+  
+  def pi4_transmit():
+    # wait till end of 0.5s before full minute
+    nextfullminute = ts_nextfullminute()
+    ml.debug(lambda:"Now: {}, wait for: {}".format(time.time(),nextfullminute))
+    ml.debug("Warte")
+    time.sleep(nextfullminute - time.time() - .5)
+    ml.debug("Zurück")
+    
+    send_heartbeat()
+    
+    carrier.pause()
+    # PI4    
+    time.sleep(nextfullminute - time.time())
+    ml.debug("Starte PI4")
+    pi4.play()
+    ml.debug("Ende PI4")
+    #
+    carrier.resume()
     
   while True:
-    for pi4repeat in xrange(10):
-      # wait till end of 0.5s before full minute
-      nextfullminute = ts_nextfullminute()
-      ml.debug(lambda:"Now: {}, wait for: {}".format(time.time(),nextfullminute))
-      ml.debug("Warte")
-      time.sleep(nextfullminute - time.time() - .5)
-      ml.debug("Zurück")
-      
-      send_heartbeat()
-      
-      carrier.pause()
-      # PI4    
-      time.sleep(nextfullminute - time.time())
-      ml.debug("Starte PI4")
-      pi4.play()
-      ml.debug("Ende PI4")
-      #
-      carrier.resume()
-      
+    for pi4repeat in xrange(1):
+      pi4_transmit()      
       send_heartbeat()
     
+    sstvp.check()
     
+    for sstv_trials in xrange(5):
+      try:
+        sstv_wf = sstvp.get_nowait()
+        break # for
+      except Queue.Empty:      
+        ml.debug("Nichts empfangen (SSTV)")
+        pi4_transmit()      
+        send_heartbeat()
+    else: # for
+      ml.warn("Überspringe SSTV")
+      sstvp.restart()
+      continue # while
+      
+    time.sleep(10) # 10s carrier, at least
+    
+    send_heartbeat()
+    
+    carrier.pause()
+    time.sleep(.5)
+    with closing(StringIO(sstv_wf)) as sstv_file:
+      with closing(PlayAudioFile(sstv_file)) as a:
+        ml.debug("Starte SSTV ...")
+        a.play()
+        ml.debug("Ende SSTV")
+    time.sleep(.5)
+    #
+    carrier.resume()      
+    
+    sstv_q.task_done()
+        
+    send_heartbeat()
+  
+  
+def sstv_process(wfq):
+  ml.info("SSTV Process {} gestartet".format(multiprocessing.current_process().pid))
+  
+  static_images = glob("images/*.jpg") + glob("images/*.bmp") + glob("images/*.png")
+  ml.info(lambda:"Static images: {}".format(", ".join(static_images)))
+  static_images = cycle(static_images)
+    
+  sstv_mode = cycle(map(lambda x: freq_shift(x,-400),[MartinM1, PasokonP3]))
+  
+  while True:
     try:
       with time_limit(10):
         e = vws()
-        imgfilename = e.download_image()
+        img = e.download_image()
     except:
       if ml.isEnabledFor(logging.DEBUG):
         ml.debug("Verbindung zu VWS fehlgeschlagen")
@@ -130,37 +199,26 @@ def main(hbq):
       #
       imgfilename = next(static_images)
       ml.debug(lambda:"Wähle statisches Bild " + imgfilename)
-      
-    send_heartbeat()
+      with open(imgfilename) as f:
+        img = f.read()
       
     try:
       sm = next(sstv_mode)
-      if ml.isEnabledFor(logging.DEBUG):
-        ml.debug(lambda:"Kodiere Bild im SSTV-Modus {}".format(sm.__name__))
-      with closing(StringIO()) as sstv_file:
-        SSTVEnc().encode(sstv_file,sm,imgfilename,"DB0LTG JO31TB " + time.strftime("%d.%m.%y %H:%M"))
-        sstv_wf = sstv_file.getvalue()
-      
-      send_heartbeat()
-      
-      carrier.pause()
-      time.sleep(.5)
-      with closing(StringIO(sstv_wf)) as sstv_file:
-        with closing(PlayAudioFile(sstv_file)) as a:
-          ml.debug("Starte SSTV ...")
-          a.play()
-          ml.debug("Ende SSTV")
-      time.sleep(.5)
-      #
-      carrier.resume()      
+      ml.debug(lambda:"Kodiere Bild im SSTV-Modus {}".format(sm.__name__))
+      with closing(StringIO(img)) as imgfile:
+        with closing(StringIO()) as sstv_file:
+          SSTVEnc().encode(sstv_file,sm,imgfile,"DB0LTG JO31TB " + time.strftime("%d.%m.%y %H:%M"))
+          sstv_wf = sstv_file.getvalue()
+          wfq.put(sstv_wf)
+          wfq.join()
     except:
       ml.warn("SSTV Kodierung fehlgeschlagen")
       if ml.isEnabledFor(logging.DEBUG):
         import traceback
         for line in traceback.format_exc().splitlines():
           ml.debug(line)
-          
-    send_heartbeat()
+    
+    time.sleep(10)
       
     
 def guarded_main():
@@ -205,7 +263,7 @@ if __name__=='__main__':
   rootlogger.setLevel(ll)
   ch = logging.StreamHandler()
   ch.setLevel(ll)
-  formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+  formatter = logging.Formatter('%(asctime)s - %(process)d - %(name)s - %(levelname)s - %(message)s')
   ch.setFormatter(formatter)
   rootlogger.addHandler(ch)
   
