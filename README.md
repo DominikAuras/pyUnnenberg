@@ -1,6 +1,8 @@
 pyUnnenberg
 ===========
 
+[![Code Issues](https://www.quantifiedcode.com/api/v1/project/b6886bd4b6b34be4952337b1c89efe17/badge.svg)](https://www.quantifiedcode.com/app/project/b6886bd4b6b34be4952337b1c89efe17)
+
 Dies ist die Bake für den Unnenberg-Turm (DB0LTG).
 
 Vorgesehen:
